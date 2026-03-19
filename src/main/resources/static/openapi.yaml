@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Tárgyaló Foglalási API
+  description: Egyszerű REST API tárgyalók listázásához és foglalások kezelésére. Fix tárgyaló lista, átfedés-ellenőrzéssel.
+  version: 1.0.0
+servers:
+  - url: https://api.targyalofoglalas.example.com/v1
+    description: Production server
+
+components:
+  schemas:
+    MeetingRoom:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: "Nagy tárgyaló"
+        location:
+          type: string
+          example: "2. emelet"
+        capacity:
+          type: integer
+          example: 10
+
+    Booking:
+      type: object
+      required: [roomId, from, to]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 123
+        roomId:
+          type: integer
+          format: int64
+          example: 1
+        from:
+          type: string
+          format: date-time
+          example: "2026-03-05T10:00:00Z"
+        to:
+          type: string
+          format: date-time
+          example: "2026-03-05T11:00:00Z"
+        title:
+          type: string
+          example: "Sprint planning"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-05T09:33:00Z"
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+paths:
+  /rooms:
+    get:
+      summary: Tárgyalók listázása
+      tags: [Rooms]
+      responses:
+        '200':
+          description: Lista a fix tárgyalókról
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MeetingRoom'
+
+  /bookings:
+    get:
+      summary: Foglalások listázása (tárgyalóhoz vagy összes)
+      tags: [Bookings]
+      parameters:
+        - name: roomId
+          in: query
+          schema:
+            type: integer
+          description: Szűrés adott tárgyalóra (opcionális)
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Szűrés kezdettől (opcionális)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Szűrés végéig (opcionális)
+      responses:
+        '200':
+          description: Foglalások listája
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+
+    post:
+      summary: Új foglalás létrehozása
+      tags: [Bookings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roomId, from, to]
+              properties:
+                roomId:
+                  type: integer
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+                title:
+                  type: string
+      responses:
+        '201':
+          description: Foglalás létrehozva
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Érvénytelen input (pl. from >= to)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tárgyaló nem található
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Ütközés meglévő foglalással
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{id}:
+    delete:
+      summary: Foglalás törlése
+      tags: [Bookings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Foglalás ID
+      responses:
+        '204':
+          description: Sikeres törlés
+        '404':
+          description: Foglalás nem található
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
